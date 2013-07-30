@@ -21,6 +21,11 @@ type (
 	}
 )
 
+var (
+	AfterViewingExpiration = time.Second * 60
+)
+
+// compare two UUIDs
 func less(a, b UUID) bool {
 	for i := 0; i < 16; i++ {
 		switch {
@@ -33,6 +38,7 @@ func less(a, b UUID) bool {
 	return false
 }
 
+// Create a new SelfDestructor. Messages are cleaned once per second.
 func New() *SelfDestructor {
 	this := &SelfDestructor{
 		byKey: splay.New(func(a, b interface{}) bool {
@@ -68,6 +74,7 @@ func (this *SelfDestructor) cleaner() {
 	}
 }
 
+// Add a new message to the self destructor
 func (this *SelfDestructor) Add(key UUID, message string, expires time.Time) bool {
 	this.lock.Lock()
 	defer this.lock.Unlock()
@@ -88,6 +95,7 @@ func (this *SelfDestructor) Add(key UUID, message string, expires time.Time) boo
 	return true
 }
 
+// Get a message from the self destructor.
 func (this *SelfDestructor) Get(key UUID) (string, bool) {
 	this.lock.Lock()
 	defer this.lock.Unlock()
@@ -102,9 +110,9 @@ func (this *SelfDestructor) Get(key UUID) (string, bool) {
 		return "", false
 	}
 
-	inSixty := time.Now().Add(time.Second * 60)
-	if el.expires.After(inSixty) {
-		el.expires = inSixty
+	newExpires := time.Now().Add(AfterViewingExpiration)
+	if el.expires.After(newExpires) {
+		el.expires = newExpires
 		this.byKey.Add(el)
 		this.byDate.Add(el)
 	}
